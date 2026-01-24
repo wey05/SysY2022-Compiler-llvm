@@ -1,0 +1,32 @@
+	.text
+	.attribute	4, 16
+	.attribute	5, "rv64i2p0_m2p0_a2p0_f2p0_d2p0_c2p0"
+	.file	"sysy"
+	.globl	__sysy_main
+	.p2align	1
+	.type	__sysy_main,@function
+__sysy_main:
+	.cfi_startproc
+	lui	a0, %hi(a)
+	addi	a0, a0, %lo(a)
+	lui	a1, 98
+	addiw	a1, a1, -1412
+	add	a1, a1, a0
+	li	a2, 1
+	lui	a0, 1
+	addiw	a0, a0, -96
+	sw	a2, 0(a1)
+	ret
+.Lfunc_end0:
+	.size	__sysy_main, .Lfunc_end0-__sysy_main
+	.cfi_endproc
+
+	.type	a,@object
+	.bss
+	.globl	a
+	.p2align	2
+a:
+	.zero	400000
+	.size	a, 400000
+
+	.section	".note.GNU-stack","",@progbits

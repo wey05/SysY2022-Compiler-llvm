@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLVM Compiler Studio</title>
+    <!-- Prism Core Theme -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #252526;
+            --border-color: #3e3e42;
+            --text-color: #d4d4d4;
+            --accent-color: #007acc;
+            --fail-color: #f48771;
+            --pass-color: #4ec9b0;
+            
+            /* 全局代码字体设置 */
+            --code-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            --code-font-size: 14px;
+            --code-line-height: 24px; 
+            --gutter-width: 50px;
+            --code-padding: 10px;
+        }
+
+        body {
+            font-family: 'Segoe UI', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 统一所有代码区域的字体和行高 */
+        code, kbd, pre, samp, .editor-textarea, .editor-gutter {
+            font-family: var(--code-font-family) !important;
+            font-size: var(--code-font-size) !important;
+            line-height: var(--code-line-height) !important;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 10px;
+        }
+        .logo { font-size: 1.2rem; color: var(--accent-color); font-weight: bold; margin-bottom: 10px; text-align: center; }
+        .dir-selector { background: #333; color: white; border: 1px solid var(--border-color); padding: 5px; width: 100%; margin-bottom: 10px; border-radius: 4px; }
+        .btn {
+            background-color: #333; color: #fff; border: 1px solid var(--border-color);
+            padding: 8px; cursor: pointer; margin-bottom: 5px; border-radius: 4px;
+            text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+        }
+        .btn:hover { background-color: #444; }
+        .btn-primary { background-color: var(--accent-color); border-color: var(--accent-color); font-weight: bold;}
+        .btn-run-all { background-color: #2da042; border-color: #2da042; margin-top: auto;}
+        .test-list { flex: 1; overflow-y: auto; border: 1px solid var(--border-color); margin-top: 10px; margin-bottom: 10px; }
+        .test-item { padding: 6px 10px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .test-item:hover { background-color: #37373d; }
+        .test-item.active { background-color: #37373d; border-left: 3px solid var(--accent-color); }
+
+        /* --- Main Layout --- */
+        .main { flex: 1; display: flex; flex-direction: column; padding: 10px; gap: 10px; }
+        .toolbar { height: 40px; display: flex; justify-content: space-between; align-items: center; background-color: var(--panel-bg); border: 1px solid var(--border-color); padding: 0 15px; border-radius: 4px; }
+        
+        .grid-container { 
+            flex: 1; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: 60% 40%; 
+            gap: 10px; 
+            overflow: hidden; 
+        }
+        
+        .panel { background-color: var(--panel-bg); border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-header { padding: 5px 10px; background-color: #333; font-size: 0.8rem; font-weight: bold; color: #aaa; border-bottom: 1px solid var(--border-color); }
+        .panel-content { flex: 1; position: relative; overflow: auto; display: flex; flex-direction: column; } 
+
+        /* --- Prism (只读视图) --- */
+        /* 这里的样式被简化了，因为不再需要显示行号 */
+        pre[class*="language-"] {
+            margin: 0 !important;
+            height: 100%;
+            border: none !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            padding: var(--code-padding) !important; /* 简单的统一内边距 */
+            box-sizing: border-box;
+            overflow: auto !important;
+        }
+
+        /* --- 自定义编辑器 (仅此处保留行号) --- */
+        .editor-wrapper {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: #1e1e1e;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .editor-gutter {
+            width: var(--gutter-width); 
+            background-color: #1e1e1e;
+            color: #858585;
+            border-right: 1px solid var(--border-color);
+            text-align: right;
+            padding-top: var(--code-padding); /* 与 textarea 顶部对齐 */
+            padding-right: 15px;
+            box-sizing: border-box;
+            user-select: none;
+            overflow: hidden; 
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .editor-textarea { 
+            flex: 1;
+            width: 100%; height: 100%; 
+            background-color: #1e1e1e; 
+            color: #d4d4d4; 
+            border: none; 
+            resize: none; 
+            padding: var(--code-padding); /* 与 gutter 顶部对齐 */
+            box-sizing: border-box; 
+            outline: none; 
+            white-space: pre;
+            overflow: auto;
+            tab-size: 4;
+            z-index: 5;
+        }
+        
+        /* --- IO 区域 (修改为 Grid 以固定大小) --- */
+        .io-container { 
+            display: grid; 
+            /* 强制分为4列，最后一列Log稍微宽一点 (1.5倍) */
+            grid-template-columns: 1fr 1fr 1fr 1.5fr; 
+            height: 100%; 
+            width: 100%;
+        }
+        .io-box { 
+            display: flex; 
+            flex-direction: column; 
+            border-right: 1px solid var(--border-color); 
+            overflow: hidden; /* 防止内容撑开容器 */
+            min-width: 0; /* 关键：允许 grid item 缩小 */
+        }
+        .io-box:last-child { border-right: none; } /* 最后一项去掉右边框 */
+
+        .area-source { grid-column: 1 / 2; grid-row: 1 / 2; }
+        .area-asm { grid-column: 2 / 3; grid-row: 1 / 2; }
+        .area-io { grid-column: 1 / 3; grid-row: 2 / 3; }
+        .hidden { display: none !important; }
+
+        /* Modal & Progress */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-content { background: var(--panel-bg); width: 85%; height: 85%; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .progress-container { width: 100%; background-color: #333; height: 10px; border-radius: 5px; margin: 15px 0; overflow: hidden; position: relative; }
+        .progress-bar { height: 100%; width: 0%; background-color: var(--accent-color); transition: width 0.3s ease; }
+        .stats-dashboard { display: flex; gap: 20px; font-size: 1.1rem; margin-bottom: 10px; background: #2d2d2d; padding: 10px; border-radius: 6px; justify-content: space-around; }
+        .stat-item strong { display: block; font-size: 1.5rem; }
+        .modal-body { flex: 1; overflow-y: auto; border: 1px solid #333; margin-top: 10px; background: #1e1e1e; }
+        .result-table { width: 100%; border-collapse: collapse; table-layout: fixed;}
+        .result-table th, .result-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #333; font-size: 0.9rem; }
+        .result-table th { background-color: #252526; position: sticky; top: 0; z-index: 1; }
+        .status-pass { color: var(--pass-color); font-weight: bold; background: rgba(78, 201, 176, 0.1); text-align: center; border-radius: 4px; padding: 2px;}
+        .status-fail { color: var(--fail-color); font-weight: bold; background: rgba(244, 135, 113, 0.1); text-align: center; border-radius: 4px; padding: 2px;}
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo">SysY 2022 Compiler Studio</div>
+        <select id="dirSelect" class="dir-selector" onchange="changeDirectory()">
+            <option value="tests">tests/</option>
+        </select>
+        <button class="btn btn-primary" onclick="buildCompiler()"><span>🔨</span> Build</button>
+        <button class="btn" onclick="enterPlayground()" id="btnPlayground"><span>📝</span> Custom Build</button>
+        <div style="margin-top: 10px; font-size: 0.8rem; color: #888;">Test Cases:</div>
+        <div class="test-list" id="testList"></div>
+        <button class="btn btn-run-all" onclick="startStreamTests()"><span>🚀</span> Run All (Stream)</button>
+    </div>
+
+    <div class="main">
+        <div class="toolbar">
+            <span id="statusText" style="font-weight: bold;">Ready</span>
+            <button class="btn btn-primary hidden" id="btnRunCustom" onclick="runCustomCode()" style="height: 30px;">▶ Run Code</button>
+        </div>
+        <div class="grid-container">
+            <!-- Source Code Panel -->
+            <div class="panel area-source">
+                <div class="panel-header">Source Code</div>
+                <div class="panel-content" style="padding:0;">
+                    
+                    <!-- 1. Read-Only View (移除了 line-numbers class) -->
+                    <pre id="viewSourcePre"><code class="language-c" id="viewSourceCode"></code></pre>
+                    
+                    <!-- 2. Edit View (保留了自定义行号) -->
+                    <div id="sourceEditorWrapper" class="editor-wrapper hidden">
+                        <div id="editorGutter" class="editor-gutter">1</div>
+                        <textarea id="editSourceArea" class="editor-textarea" spellcheck="false" 
+                                  oninput="updateLineNumbers()" 
+                                  onscroll="syncScroll()"
+                                  onkeydown="handleTab(event)"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assembly Code Panel -->
+            <div class="panel area-asm">
+                <div class="panel-header">Assembly (test.s)</div>
+                <div class="panel-content" style="padding:0;">
+                    <!-- Read-Only View (移除了 line-numbers class) -->
+                    <pre><code class="language-nasm" id="asmCode"></code></pre>
+                </div>
+            </div>
+
+            <!-- IO Panels -->
+            <div class="panel area-io">
+                <div class="io-container">
+                    <!-- 使用 Grid 布局，不再使用 flex:1.5 style 属性，而在 CSS 中控制 -->
+                    <div class="io-box">
+                        <div class="panel-header">Input</div>
+                        <div id="viewInput" class="editor-textarea" style="background:transparent;overflow:auto;"></div>
+                        <textarea id="editInput" class="editor-textarea hidden"></textarea>
+                    </div>
+                    <div class="io-box" id="boxExpected">
+                        <div class="panel-header">Expected</div>
+                        <div id="viewExpected" class="editor-textarea" style="background:transparent;overflow:auto;"></div>
+                    </div>
+                    <div class="io-box">
+                        <div class="panel-header">Actual Output</div>
+                        <div id="viewActual" class="editor-textarea" style="background:transparent;overflow:auto;"></div>
+                    </div>
+                    <div class="io-box">
+                        <div class="panel-header">Log</div>
+                        <div id="viewLog" class="editor-textarea" style="background:transparent;overflow:auto;font-size:12px;color:#aaa;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0;">Run All Results</h2>
+                <button onclick="closeModal()" class="btn" style="width: auto; background-color: #c0392b; border:none;">Close</button>
+            </div>
+            <div class="stats-dashboard" style="margin-top:15px;">
+                <div class="stat-item" style="color: #aaa;">Total<strong id="statTotal" style="color:white">0</strong></div>
+                <div class="stat-item" style="color: var(--pass-color);">Passed<strong id="statPass">0</strong></div>
+                <div class="stat-item" style="color: var(--fail-color);">Failed<strong id="statFail">0</strong></div>
+                <div class="stat-item" style="color: var(--accent-color);">Rate<strong id="statRate">0%</strong></div>
+            </div>
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th style="width: 250px;">Test Case</th>
+                            <th style="width: 80px; text-align:center;">Status</th>
+                            <th>Info / Log</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-nasm.min.js"></script>
+    <!-- 移除 Prism Line Numbers JS，因为我们只在自定义编辑器里手写行号 -->
+
+    <script>
+        const DEFAULT_CODE = `int n;
+int bubblesort(int arr[])
+{
+    int i;
+    int j;
+    i =0; 
+    while(i < n-1){
+    // Last i elements are already in place
+        j = 0;
+        while(j < n-i-1){
+            if (arr[j] > arr[j+1]) {
+                // swap(&arr[j], &arr[j+1]); 
+                int tmp;
+                tmp = arr[j+1];
+                arr[j+1] = arr[j];
+                arr[j] = tmp;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+int main(){
+    n = 10;
+    int a[10];
+    a[0]=4;a[1]=3;a[2]=9;a[3]=2;a[4]=0;
+    a[5]=1;a[6]=6;a[7]=5;a[8]=7;a[9]=8;
+    int i;
+    i = bubblesort(a);
+    while (i < n) {
+        int tmp;
+        tmp = a[i];
+        putint(tmp);
+        tmp = 10;
+        putch(tmp);
+        i = i + 1;
+    }
+    return 0;
+}
+`;
+        let eventSource = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDirectories();
+        });
+
+        // --- Stream Logic ---
+        function startStreamTests() {
+            const dir = document.getElementById('dirSelect').value;
+            const modal = document.getElementById('resultModal');
+            const tbody = document.getElementById('resultTableBody');
+            
+            modal.classList.remove('hidden');
+            tbody.innerHTML = '';
+            document.getElementById('progressBar').style.width = '0%';
+            updateStats(0, 0, 0);
+
+            if (eventSource) eventSource.close();
+
+            eventSource = new EventSource(`/api/run_all_stream?dir=${dir}`);
+            
+            let total = 0; let current = 0; let pass = 0; let fail = 0;
+
+            eventSource.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                if (data.type === 'start') {
+                    total = data.total;
+                    updateStats(total, 0, 0);
+                } 
+                else if (data.type === 'result') {
+                    current++;
+                    if (data.pass) pass++; else fail++;
+                    const tr = document.createElement('tr');
+                    const statusClass = data.pass ? 'status-pass' : 'status-fail';
+                    const statusText = data.pass ? 'PASS' : 'FAIL';
+                    tr.innerHTML = `<td>${data.index}</td><td title="${data.name}">${data.name}</td><td><div class="${statusClass}">${statusText}</div></td><td style="font-size: 0.85rem; color: #888; font-family:consolas;">${data.log.substring(0, 120)}${data.log.length > 120 ? '...' : ''}</td>`;
+                    tbody.appendChild(tr);
+                    const modalBody = document.getElementById('modalBody');
+                    modalBody.scrollTop = modalBody.scrollHeight;
+                    const percent = (current / total) * 100;
+                    document.getElementById('progressBar').style.width = `${percent}%`;
+                    updateStats(total, pass, fail);
+                } 
+                else if (data.type === 'done') {
+                    eventSource.close();
+                    document.getElementById('progressBar').style.backgroundColor = fail > 0 ? '#f48771' : '#4ec9b0';
+                }
+            };
+            eventSource.onerror = function() { console.error("EventSource failed."); eventSource.close(); };
+        }
+
+        function updateStats(total, pass, fail) {
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPass').textContent = pass;
+            document.getElementById('statFail').textContent = fail;
+            const rate = total > 0 ? Math.round((pass/total)*100) : 0;
+            document.getElementById('statRate').textContent = rate + "%";
+        }
+
+        function closeModal() {
+            document.getElementById('resultModal').classList.add('hidden');
+            if(eventSource) eventSource.close();
+        }
+
+        async function loadDirectories() {
+            try {
+                const res = await fetch('/api/list_dirs');
+                const dirs = await res.json();
+                const select = document.getElementById('dirSelect');
+                select.innerHTML = '';
+                dirs.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.textContent = d + "/";
+                    select.appendChild(opt);
+                });
+                loadTestList();
+            } catch(e) {}
+        }
+
+        async function changeDirectory() {
+            const dir = document.getElementById('dirSelect').value;
+            await fetch('/api/change_dir', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({dir}) });
+            loadTestList();
+        }
+
+        async function loadTestList() {
+            try {
+                const res = await fetch('/api/list_tests');
+                const files = await res.json();
+                const list = document.getElementById('testList');
+                list.innerHTML = '';
+                files.forEach(f => {
+                    const div = document.createElement('div');
+                    div.className = 'test-item'; div.textContent = f;
+                    div.onclick = () => runTestCase(f, div);
+                    list.appendChild(div);
+                });
+            } catch(e) {}
+        }
+
+        async function buildCompiler() {
+            updateStatus("Building...", true);
+            try {
+                const res = await fetch('/api/build', {method:'POST'});
+                const data = await res.json();
+                document.getElementById('viewLog').textContent = data.log;
+                updateStatus(data.success ? "Build Success" : "Build Failed", false);
+            } catch(e) { updateStatus("Error", false); }
+        }
+
+        // --- Code Editor Utils ---
+
+        function updateLineNumbers() {
+            const textarea = document.getElementById('editSourceArea');
+            const gutter = document.getElementById('editorGutter');
+            const lines = textarea.value.split('\n').length;
+            const lineCount = Math.max(lines, 1);
+            gutter.innerHTML = Array.from({length: lineCount}, (_, i) => `<div>${i + 1}</div>`).join('');
+        }
+
+        function syncScroll() {
+            const textarea = document.getElementById('editSourceArea');
+            const gutter = document.getElementById('editorGutter');
+            gutter.scrollTop = textarea.scrollTop;
+        }
+        
+        function handleTab(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const textarea = e.target;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                textarea.value = textarea.value.substring(0, start) + "    " + textarea.value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + 4;
+            }
+        }
+
+        function enterPlayground() {
+            document.querySelectorAll('.test-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('btnPlayground').style.backgroundColor = '#444';
+            
+            document.getElementById('viewSourcePre').classList.add('hidden');
+            document.getElementById('sourceEditorWrapper').classList.remove('hidden');
+            
+            document.getElementById('viewInput').classList.add('hidden');
+            document.getElementById('editInput').classList.remove('hidden');
+            document.getElementById('boxExpected').classList.add('hidden');
+            document.getElementById('btnRunCustom').classList.remove('hidden');
+            
+            const area = document.getElementById('editSourceArea');
+            if (!area.value.trim()) area.value = DEFAULT_CODE;
+            
+            updateLineNumbers();
+            document.getElementById('statusText').textContent = "Playground Mode";
+        }
+
+        async function runTestCase(file, div) {
+            document.getElementById('btnPlayground').style.backgroundColor = '';
+            
+            document.getElementById('viewSourcePre').classList.remove('hidden');
+            document.getElementById('sourceEditorWrapper').classList.add('hidden');
+            
+            document.getElementById('viewInput').classList.remove('hidden');
+            document.getElementById('editInput').classList.add('hidden');
+            document.getElementById('boxExpected').classList.remove('hidden');
+            document.getElementById('btnRunCustom').classList.add('hidden');
+            
+            document.querySelectorAll('.test-item').forEach(el => el.classList.remove('active'));
+            div.classList.add('active');
+            updateStatus(`Running ${file}...`, true);
+
+            try {
+                const res = await fetch('/api/run_test', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({test_name: file})
+                });
+                const data = await res.json();
+                document.getElementById('viewSourceCode').textContent = data.source;
+                document.getElementById('asmCode').textContent = data.asm;
+                document.getElementById('viewInput').textContent = data.input;
+                document.getElementById('viewExpected').textContent = data.expected;
+                document.getElementById('viewActual').textContent = data.actual;
+                document.getElementById('viewLog').textContent = data.log.replace(/\u001b\[.*?m/g, '');
+                
+                if(data.pass) {
+                    updateStatus(`${file} Passed ✅`, false);
+                    document.getElementById('viewActual').style.color = "#4ec9b0";
+                } else {
+                    updateStatus(`${file} Failed ❌`, false);
+                    document.getElementById('viewActual').style.color = "#f48771";
+                }
+                Prism.highlightAll();
+            } catch(e) { updateStatus("Network Error", false); }
+        }
+
+        async function runCustomCode() {
+            const source = document.getElementById('editSourceArea').value;
+            const input = document.getElementById('editInput').value;
+            updateStatus("Compiling...", true);
+            try {
+                const res = await fetch('/api/run_custom', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({source, input})
+                });
+                const data = await res.json();
+                document.getElementById('asmCode').textContent = data.asm;
+                document.getElementById('viewActual').textContent = data.actual;
+                document.getElementById('viewActual').style.color = "#d4d4d4";
+                document.getElementById('viewLog').textContent = data.log.replace(/\u001b\[.*?m/g, '');
+                Prism.highlightAll();
+                updateStatus("Done", false);
+            } catch(e) { updateStatus("Error", false); }
+        }
+
+        function updateStatus(text, loading) {
+            document.getElementById('statusText').textContent = text;
+            document.body.style.cursor = loading ? 'wait' : 'default';
+        }
+    </script>
+</body>
+</html>
