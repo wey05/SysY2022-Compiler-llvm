@@ -1,0 +1,110 @@
+int A[1024][1024];
+int B[1024][1024];
+int C[1024][1024];
+
+int main() {
+    int T = getint(); // 矩阵规模
+    int R = getint(); // 重复次数
+
+    int i = 0;
+    while (i < T) {
+        if (i < T / 2) {
+            getarray(A[i]);
+        }
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i < T) {
+        if (i >= T / 2) {
+            getarray(B[i]);
+        }
+        i = i + 1;
+    }
+
+    starttime();
+
+    i = 0;
+    while (i < T) {
+        if (i >= T / 2) {
+            int j = 0;
+            while (j < T) {
+                A[i][j] = -1;
+                j = j + 1;
+            }
+        }
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i < T) {
+        if (i < T / 2) {
+            int j = 0;
+            while (j < T) {
+                B[i][j] = -1;
+                j = j + 1;
+            }
+        }
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i < T) {
+        int j = 0;
+        while (j < T) {
+            C[i][j] = A[i][j] * 2 + B[i][j] * 3;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i < T) {
+        int j = 0;
+        while (j < T) {
+            int val = C[i][j];
+            val = val * val + 7;
+            val = val / 3;
+            C[i][j] = val;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i < T) {
+        int j = 0;
+        while (j < T) {
+            int k = 0;
+            int sum = 0;
+            while (k < T) {
+                sum = sum + C[i][k] * A[k][j];
+                k = k + 1;
+            }
+            A[i][j] = sum;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    int total = 0;
+    int r = 0;
+    while (r < R) {
+        i = 0;
+        while (i < T) {
+            int j = 0;
+            while (j < T) {
+                total = total + A[i][j] * A[i][j];
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        r = r + 1;
+    }
+
+    stoptime();
+
+    putint(total);
+    putch(10);
+    return 0;
+}

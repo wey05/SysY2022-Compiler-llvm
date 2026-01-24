@@ -1,0 +1,79 @@
+int seed = 0;
+
+int rand() {                  
+  seed = (seed * 19980130 + 23333) % 100000007;
+  if (seed < 0) seed = seed + 100000007;                    
+  return seed;                                                                                                           
+}                       
+
+int gcd(int a, int b){
+    while (b != 0) {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+
+int prime_factors(int n) {
+    int count = 0;
+    int i = 3;
+    
+    while (n % 2 == 0) {
+        n = n / 2;
+        count = count + 1;
+    }
+
+    // Check for odd factors from 3 upwards
+    
+    while (i * i <= n) {
+        while (n % i == 0) {
+            n = n / i;
+            count = count + 1;
+        }
+	i = i + 2;
+    }
+
+    // If the remaining number is a prime greater than 2
+    if (n > 2) {
+        count = count + 1;
+    }
+
+    return count; // Return the count of prime factors
+}
+
+int main() {
+    int sum = 0;
+    int i = 0;
+    int n = getint();  // Replace with your input function
+    seed = getint();   // Replace with your input function
+    
+    starttime();
+    
+    while(i < n) {
+        int prime_count = 0; // Store the result of prime factors calculation
+
+        if(i % 2 == 0) {
+            sum = sum - rand() / 10007;  // Use random numbers, just a placeholder
+            prime_count = prime_factors(sum);  // Get the prime factor count
+        } else {
+            sum = sum + rand() % (-10007);  // Use random numbers
+            prime_count = prime_factors(sum);  // Get the prime factor count
+        }
+        
+        // Affect `sum` by the number of prime factors
+        sum = sum + prime_count;  // Add the count of prime factors to `sum`
+
+        // Keep `sum` in the range of 0 to 255
+        sum = sum % 256;
+
+        putint(sum);  // Replace with your output function
+        putch(10);    // Output newline
+        i = i + 1;
+    }
+
+    stoptime();
+    return 0;
+}
+

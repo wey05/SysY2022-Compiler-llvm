@@ -1,0 +1,150 @@
+const int N = 2048;
+const int KSIZE = 5;
+
+int state;
+int repeat_factor;
+int N_eff;
+
+int get_random() {
+    int n = state % 2048;
+    int i = 0;
+    while (i < n) {
+        state = state + 128;
+        state = state % 65535;
+        i = i + 1;
+    }
+    state = state % 65535;
+    return state;
+}
+
+int idx(int r, int c, int n) {
+    return r * n + c;
+}
+
+void init_matrix(int A[]) {
+    int r = 0;
+    while (r < N_eff) {
+        int c = 0;
+        if (r < N_eff / 2) {
+            while (c < N_eff) {
+                A[idx(r, c, N_eff)] = get_random() % 65535;
+                c = c + 1;
+            }
+        } else {
+            while (c < N_eff) {
+                A[idx(r, c, N_eff)] = -1;
+                c = c + 1;
+            }
+        }
+        r = r + 1;
+    }
+}
+
+void init_kernel(int K[]) {
+    int i = 0;
+    while (i < KSIZE * KSIZE) {
+        K[i] = (i % 3) - 1;
+        i = i + 1;
+    }
+}
+
+void conv2d(int In[], int Out[], int K[]) {
+    int pad = KSIZE / 2;
+    int repeat = 0;
+    while (repeat < repeat_factor) {
+        int r = 0;
+        while (r < N_eff) {
+            int c = 0;
+            while (c < N_eff) {
+                int sum = 0;
+                int kr = 0;
+                while (kr < KSIZE) {
+                    int kc = 0;
+                    int rr = r + kr - pad;
+                    while (kc < KSIZE) {
+                        int cc = c + kc - pad;
+                        if (rr >= 0 && rr < N_eff && cc >= 0 && cc < N_eff) {
+                            sum = sum + In[idx(rr, cc, N_eff)] * K[idx(kr, kc, KSIZE)];
+                        }
+                        kc = kc + 1;
+                    }
+                    kr = kr + 1;
+                }
+                Out[idx(r, c, N_eff)] = sum;
+                c = c + 1;
+            }
+            r = r + 1;
+        }
+        repeat = repeat + 1;
+    }
+}
+
+void nonlinear(int A[]) {
+    int i = 0;
+    while (i < N_eff * N_eff) {
+        int v = A[i];
+        int t1 = v * v;
+        int t2 = t1 + (3 * v);
+        int t3 = t2 - 7;
+        int t4 = t3 % 97;
+        A[i] = t4;
+        i = i + 1;
+    }
+}
+
+void row_reduce(int A[]) {
+    int r = 0;
+    while (r < N_eff) {
+        int sum = 0;
+        int c = 0;
+        while (c < N_eff) {
+            sum = sum + A[idx(r, c, N_eff)];
+            c = c + 1;
+        }
+        c = 0;
+        while (c < N_eff) {
+            A[idx(r, c, N_eff)] = A[idx(r, c, N_eff)] - sum;
+            c = c + 1;
+        }
+        r = r + 1;
+    }
+}
+
+int checksum(int A[]) {
+    int s = 0;
+    int i = 0;
+    while (i < N_eff * N_eff) {
+        s = s + A[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+int In[2048 * 2048];  // 只操作前N_eff部分
+int Out[2048 * 2048];
+int K[25];
+
+int main() {
+    state = getint();
+    repeat_factor = getint();
+
+    // 控制 N_eff 使得矩阵规模可调，范围64~576
+    N_eff = (state % 513) + 64;
+
+    starttime();
+
+    init_matrix(In);
+    init_kernel(K);
+
+    conv2d(In, Out, K);
+    nonlinear(Out);
+    row_reduce(Out);
+
+    int sum = checksum(Out);
+
+    stoptime();
+
+    putint(sum);
+    putch(10);
+    return 0;
+}

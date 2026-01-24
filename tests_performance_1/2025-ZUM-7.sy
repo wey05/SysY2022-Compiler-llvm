@@ -1,0 +1,179 @@
+int data[100000];
+int size;
+int out[100000];
+int out_num = 0;
+int pos;	
+int buf;	
+int bits;	
+
+int _and(int a, int b) {
+    int bit_a, bit_b;
+    int len = 32, result = 0, power = 1;
+    
+    while (len) {
+        bit_a = a % 2;
+        bit_b = b % 2;
+        a = a / 2;
+        b = b / 2;
+        if (bit_a == 1 && bit_b == 1) {
+            result = result + power;
+        }
+        power = power * 2;
+        len = len - 1;
+    }
+
+    return result;
+}
+
+int _xor(int a, int b) {
+    int bit_a, bit_b;
+    int len = 32, result = 0, power = 1;
+    
+    while (len) {
+        bit_a = a % 2;
+        bit_b = b % 2;
+        a = a / 2;
+        b = b / 2;
+        if (bit_a != bit_b) {
+            result = result + power;
+        }
+        power = power * 2;
+        len = len - 1;
+    }
+
+    return result;
+}
+
+int _or(int a, int b) {
+    int bit_a, bit_b;
+    int len = 32, result = 0, power = 1;
+    
+    while (len) {
+        bit_a = a % 2;
+        bit_b = b % 2;
+        a = a / 2;
+        b = b / 2;
+        if (bit_a == 1 || bit_b == 1) {
+            result = result + power;
+        }
+        power = power * 2;
+        len = len - 1;
+    }
+
+    return result;
+}
+
+int rotrN(int x, int n) {
+	if (n == 1) return x / 2;
+	if (n == 2) return x / 4;
+	if (n == 3) return x / 8;
+	if (n == 4) return x / 16;
+	if (n == 5) return x / 32;
+	if (n == 6) return x / 64;
+	if (n == 7) return x / 128;
+	if (n == 8) return x / 256;
+   return x;
+}
+
+int rotlN(int x, int n) {
+	if (n == 1) return x * 2;
+	if (n == 2) return x * 4;
+	if (n == 3) return x * 8;
+	if (n == 4) return x * 16;
+	if (n == 5) return x * 32;
+	if (n == 6) return x * 64;
+	if (n == 7) return x * 128;
+	if (n == 8) return x * 256;
+   return x;
+}
+
+int read_bits(int n)
+{
+	while (bits < n && pos < size) {
+        	buf = _or(buf, (rotlN(data[pos], bits)));
+		bits = bits + 8;
+        	pos = pos + 1;
+	}
+	int result = _and(buf, (rotlN(1, n) - 1));
+	buf = rotrN(buf, n);
+	bits = bits - n;
+
+	return result;
+}
+
+void decode_fixed_huffman() {
+	int i = 0;
+
+	while (bits > 0) {
+        	read_bits(1);
+	}
+
+	while (1) {
+		int ascci = read_bits(5) + 0x40;
+		if (ascci > 0x40 && ascci <= 0x90) {
+			out[i] = ascci;
+			i = i + 1;
+			continue;
+		} else if (pos < size ) {
+			continue;
+		} else break;
+	}
+	out_num = i;
+}
+
+
+void output_data(int idx)
+{
+	if (out_num <= 1000) {
+		putch(out[idx]);
+	}
+	else if (out_num > 1000 && out_num <= 10000) {
+		if (idx % 5 == 0)
+			putch(out[idx]);
+	}
+	else if (out_num > 10000 && out_num <= 100000) {
+		if (idx % 50 == 0)
+			putch(out[idx]);
+	}
+	else if (idx % 100 == 0) {
+		putch(out[idx]);
+	}
+	else {
+		return;
+	}
+}
+
+int main()
+{
+	int i = 0;
+	int bfinal, btype;
+	size = getarray(data);
+	int n = 2000;
+
+	starttime();
+	while (n > 0) {
+    		pos = 0;
+    		bits = 0;
+    		bfinal = read_bits(1);
+    		btype = read_bits(2);
+	    	decode_fixed_huffman();
+	    	n = n - 1;
+	}
+	stoptime();
+
+	putint(bfinal);
+	putch(32);
+	putint(btype);
+	putch(10);
+	while (1) {
+		if (i < out_num) {
+			output_data(i);
+			i = i + 1;
+		} else
+			break;
+	}
+
+	putch(10);
+
+	return 0;
+}

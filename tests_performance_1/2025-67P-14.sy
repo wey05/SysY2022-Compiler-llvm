@@ -1,0 +1,38 @@
+int N;
+int W;
+
+int weight[50];
+int value[50];
+
+int knapsack_naive(int i, int w) {
+    if (i == 0 || w == 0) {
+        return 0;
+    }
+
+    if (weight[i - 1] > w) {
+        return knapsack_naive(i - 1, w);
+    } else {
+        int without_item = knapsack_naive(i - 1, w);
+        int with_item = value[i - 1] + knapsack_naive(i - 1, w - weight[i - 1]);
+
+        if (with_item > without_item) {
+            return with_item;
+        } else {
+            return without_item;
+        }
+    }
+}
+
+int main() {
+    N = getint();
+    W = getint();
+    getarray(weight);
+    getarray(value);
+
+    starttime();
+    int result = knapsack_naive(N, W);
+    stoptime();
+    putint(result);
+    putch(10);
+    return 0;
+}

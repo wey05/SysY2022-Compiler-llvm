@@ -1,0 +1,79 @@
+int crc32table[256];
+  
+int a[100020];
+
+int _and(int a, int b) {
+    int bit_a, bit_b;
+    int len = 32, result = 0, power = 1;
+    
+    while (len) {
+        bit_a = a % 2;
+        bit_b = b % 2;
+        a = a / 2;
+        b = b / 2;
+        if (bit_a == 1 && bit_b == 1) {
+            result = result + power;
+        }
+        power = power * 2;
+        len = len - 1;
+    }
+
+    return result;
+}
+
+int _xor(int a, int b) {
+    int bit_a, bit_b;
+    int len = 32, result = 0, power = 1;
+    
+    while (len) {
+        bit_a = a % 2;
+        bit_b = b % 2;
+        a = a / 2;
+        b = b / 2;
+        if (bit_a != bit_b) {
+            result = result + power;
+        }
+        power = power * 2;
+        len = len - 1;
+    }
+
+    return result;
+}
+
+int rotr8(int x) {
+  return x / 256;
+}
+
+int crc32(int crc, int p[], int len)
+{
+    int i = 0;
+    int index;
+	while (i < len) {
+        index = _xor(_and(crc, 255), p[i]);
+        crc = _xor(rotr8(crc), crc32table[index]);
+        i = i + 1;
+    }
+	return crc;
+}
+
+int main() {
+    int n = getarray(a);
+    int crc = 0;
+    int ans;
+    int i = 0;
+    while (i < 256) {
+    	  crc32table[i] = 19260817 + i;
+	  i = i + 1;
+    }
+    starttime();
+    while (n) {
+        ans = crc32(crc, a, n) % 19260817;
+        n = n - 1;
+    }
+    stoptime();
+    
+    putint(ans);
+    putch(10);
+    
+    return 0;
+}

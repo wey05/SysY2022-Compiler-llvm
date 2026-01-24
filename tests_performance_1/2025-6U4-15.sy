@@ -1,0 +1,52 @@
+
+int dependent_computation(int iterations) {
+    int a = 1, b = 2, c = 3, d = 4;
+    int i = 0;
+    while (i < iterations) {  
+        a = a + b;
+        b = b + c;
+        c = c + d;
+        d = d + a;
+        i = i + 1;  
+    }
+    return a + b + c + d; 
+}
+
+int independent_computation(int iterations) {
+    int a = 1, b = 2, c = 3, d = 4;
+    int i = 0;
+    while (i < iterations) {  
+        int a_new = a + b;
+        int b_new = b + c;
+        int c_new = c + d;
+        int d_new = d + a; 
+        
+        a = a_new;
+        b = b_new;
+        c = c_new;
+        d = d_new;
+        
+        i = i + 1;  
+    }
+    return a + b + c + d;
+}
+
+
+int main() {
+    int res_dep, res_indep;
+    int iterations;
+    iterations = getint();
+
+    starttime();
+    res_dep = dependent_computation(iterations);
+    res_indep = independent_computation(iterations);
+    stoptime();
+    
+    putint(res_dep);
+    putch(10);
+    putint(res_indep);
+    putch(10);
+
+    return 0;
+}
+
